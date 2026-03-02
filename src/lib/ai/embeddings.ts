@@ -1,12 +1,18 @@
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  apiKey: process.env.MINIMAX_API_KEY,
-  baseURL: "https://api.minimaxi.chat/v1",
-});
+let _openai: OpenAI | null = null;
+function getOpenAI() {
+  if (!_openai) {
+    _openai = new OpenAI({
+      apiKey: process.env.MINIMAX_API_KEY,
+      baseURL: "https://api.minimaxi.chat/v1",
+    });
+  }
+  return _openai;
+}
 
 export async function generateEmbedding(text: string): Promise<number[]> {
-  const response = await openai.embeddings.create({
+  const response = await getOpenAI().embeddings.create({
     model: "embo-01",
     input: text,
   });
@@ -53,7 +59,7 @@ Write 1-3 sentences that could be used to search for similar commercial spaces.
 
 [Image base64:${base64Data}]`;
 
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: "MiniMax-Text-01",
       messages: [
         {

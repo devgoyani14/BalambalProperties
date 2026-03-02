@@ -52,7 +52,7 @@ export default function RegisterPage() {
           </div>
           <CardTitle className="text-2xl">Create Account</CardTitle>
           <CardDescription>
-            Join Balambal Properties and find your perfect commercial space
+            Join BalaOne Properties and find your perfect commercial space
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>

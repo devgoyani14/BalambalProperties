@@ -46,9 +46,14 @@ function StarRating({ rating }: { rating: number | null }) {
 }
 
 export default async function SolicitorsPage() {
-  const solicitors = await prisma.solicitor.findMany({
-    orderBy: { rating: "desc" },
-  });
+  let solicitors: Awaited<ReturnType<typeof prisma.solicitor.findMany>> = [];
+  try {
+    solicitors = await prisma.solicitor.findMany({
+      orderBy: { rating: "desc" },
+    });
+  } catch {
+    // Table may not exist yet in production
+  }
 
   return (
     <div className="min-h-screen bg-white">

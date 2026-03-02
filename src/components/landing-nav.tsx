@@ -22,8 +22,6 @@ const navLinks: NavItem[] = [
     ],
   },
   { href: "/compare", label: "Compare" },
-  { href: "/solicitors", label: "Solicitors" },
-  { href: "/market", label: "Market" },
   {
     href: "#",
     label: "Resources",
@@ -92,7 +90,7 @@ export function LandingNav() {
             href="/"
             className="text-lg font-semibold tracking-tight text-gray-900"
           >
-            BALAMPROPS
+            BalaOne
           </Link>
 
           <nav className="hidden items-center gap-1 md:flex">

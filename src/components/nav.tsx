@@ -34,7 +34,7 @@ export function Nav() {
         <div className="flex items-center gap-8">
           <Link href="/" className="flex items-center gap-2">
             <Building2 className="h-7 w-7 text-primary" />
-            <span className="text-lg font-bold tracking-tight">Balambal</span>
+            <span className="text-lg font-bold tracking-tight">BalaOne</span>
           </Link>
 
           <nav className="hidden items-center gap-1 md:flex">

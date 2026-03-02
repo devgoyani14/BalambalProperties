@@ -19,9 +19,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!process.env.MINIMAX_API_KEY) {
+    const useBedrock =
+      (process.env.BEDROCK_RISK_ASSESSMENT_ENABLED === "true" ||
+        process.env.BEDROCK_RISK_ASSESSMENT_ENABLED === "1") &&
+      process.env.AWS_REGION;
+    const hasMinimax = Boolean(process.env.MINIMAX_API_KEY);
+    if (!useBedrock && !hasMinimax) {
       return NextResponse.json(
-        { error: "MiniMax API key not configured" },
+        { error: "AI not configured (set MINIMAX_API_KEY or enable Bedrock with AWS_REGION)" },
         { status: 503 }
       );
     }

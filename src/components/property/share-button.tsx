@@ -15,7 +15,7 @@ export function ShareButton({ title, propertyId }: ShareButtonProps) {
   async function handleShare() {
     const url = `${window.location.origin}/property/${propertyId}`;
     const shareData = {
-      title: `${title} — Balambal`,
+      title: `${title} — BalaOne`,
       text: `Check out this commercial property: ${title}`,
       url,
     };

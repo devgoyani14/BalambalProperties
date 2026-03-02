@@ -46,7 +46,7 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl">Welcome Back</CardTitle>
           <CardDescription>
-            Sign in to your Balambal Properties account
+            Sign in to your BalaOne Properties account
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>

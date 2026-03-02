@@ -1,7 +1,6 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import Image from "next/image";
 import {
   ArrowRight,
   TrendingUp,
@@ -68,36 +67,6 @@ async function getPropertyStats() {
   }
 }
 
-const MARKET_INSIGHTS = [
-  {
-    title: "Central Office Rents",
-    value: "HK$65–85/sqft",
-    change: "+2.3%",
-    trend: "up",
-    description: "Grade A office rents in Central continue to see steady demand from financial services firms.",
-  },
-  {
-    title: "Kwun Tong Industrial",
-    value: "HK$18–28/sqft",
-    change: "+5.1%",
-    trend: "up",
-    description: "Converted industrial spaces in Kwun Tong are gaining traction with creative and tech startups.",
-  },
-  {
-    title: "TST Retail Vacancy",
-    value: "8.2%",
-    change: "-1.4%",
-    trend: "down",
-    description: "Tsim Sha Tsui retail vacancy rates are declining as tourism recovery boosts foot traffic.",
-  },
-  {
-    title: "Average Deal Time",
-    value: "18 days",
-    change: "-3 days",
-    trend: "down",
-    description: "Properties with verified evidence packs are closing faster than the market average.",
-  },
-];
 
 export default async function HomePage() {
   const [hotProperties, featuredProperties, stats] = await Promise.all([
@@ -111,7 +80,7 @@ export default async function HomePage() {
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-white">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-50 via-white to-white" />
-        <div className="relative mx-auto flex max-w-6xl flex-col gap-8 px-6 py-14 lg:flex-row lg:items-start lg:gap-12 lg:px-8 lg:py-20">
+        <div className="relative mx-auto flex max-w-6xl flex-col gap-8 px-6 py-14 lg:flex-row lg:items-center lg:gap-12 lg:px-8 lg:py-20">
           <div className="flex-1">
             <div className="inline-flex items-center gap-2 rounded-full bg-indigo-50 px-4 py-1.5 text-sm font-medium text-indigo-700">
               <Sparkles className="h-3.5 w-3.5" />
@@ -140,18 +109,6 @@ export default async function HomePage() {
                   ? `${stats.total.toLocaleString()} listings from ${stats.sourceCount} sources`
                   : "New listings daily"}
               </span>
-            </div>
-            <div className="mt-10">
-              <div className="overflow-hidden rounded-2xl shadow-lg">
-                <Image
-                  src="https://images.unsplash.com/photo-1497366216548-37526070297c?w=800"
-                  alt="Modern office space with city view"
-                  width={600}
-                  height={400}
-                  className="h-auto w-full object-cover"
-                  priority
-                />
-              </div>
             </div>
           </div>
 
@@ -297,51 +254,6 @@ export default async function HomePage() {
                 </Link>
               </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Market Insights */}
-      <section className="border-t border-gray-100 bg-gray-50/50 py-16">
-        <div className="mx-auto max-w-6xl px-6 lg:px-8">
-          <div className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-indigo-600" />
-            <h2 className="text-2xl font-bold text-gray-900">
-              Market Insights
-            </h2>
-          </div>
-          <p className="mt-1 text-sm text-gray-500">
-            Latest commercial property market trends in Hong Kong
-          </p>
-
-          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {MARKET_INSIGHTS.map((insight) => (
-              <div
-                key={insight.title}
-                className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-200/60"
-              >
-                <p className="text-sm font-medium text-gray-500">
-                  {insight.title}
-                </p>
-                <div className="mt-2 flex items-baseline gap-2">
-                  <p className="text-2xl font-bold text-gray-900">
-                    {insight.value}
-                  </p>
-                  <span
-                    className={`text-sm font-semibold ${
-                      insight.trend === "up"
-                        ? "text-emerald-600"
-                        : "text-blue-600"
-                    }`}
-                  >
-                    {insight.change}
-                  </span>
-                </div>
-                <p className="mt-3 text-sm leading-relaxed text-gray-500">
-                  {insight.description}
-                </p>
-              </div>
-            ))}
           </div>
         </div>
       </section>

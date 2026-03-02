@@ -32,9 +32,11 @@ export async function runScraper(fullScan = false): Promise<ScraperStats> {
   log.info(`Options: maxPages=${options.maxPagesPerCategory}, delay=${options.delayBetweenRequests}ms`);
 
   const scrapers = createScrapers();
-  const allResults: ScraperResult[] = [];
-  const allListings: RawListing[] = [];
   const sourceStats: Record<string, { listings: number; errors: number }> = {};
+  let totalCreated = 0;
+  let totalUpdated = 0;
+  let totalErrors = 0;
+  let totalListings = 0;
 
   for (const scraper of scrapers) {
     log.info(`\n${"=".repeat(60)}`);
@@ -43,41 +45,40 @@ export async function runScraper(fullScan = false): Promise<ScraperStats> {
 
     try {
       const result = await scraper.run(options);
-      allResults.push(result);
-      allListings.push(...result.listings);
       sourceStats[result.source] = {
         listings: result.listings.length,
         errors: result.errors.length,
       };
+      totalListings += result.listings.length;
+      totalErrors += result.errors.length;
+
+      if (result.listings.length > 0) {
+        log.info(`\nWriting ${result.source} data to database...`);
+        const deduped = deduplicateListings(result.listings);
+        log.info(`${result.source}: ${result.listings.length} raw → ${deduped.length} after dedup`);
+        const normalized = deduped.map(normalizeListing);
+        const upsertResult = await upsertProperties(normalized);
+        totalCreated += upsertResult.created;
+        totalUpdated += upsertResult.updated;
+        totalErrors += upsertResult.errors;
+        log.info(`${result.source}: ${upsertResult.created} created, ${upsertResult.updated} updated, ${upsertResult.errors} errors → saved to DB ✓`);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       log.error(`Scraper ${scraper.sourceName} crashed: ${msg}`);
       sourceStats[scraper.sourceName] = { listings: 0, errors: 1 };
+      totalErrors++;
     }
   }
 
-  log.info(`\n${"=".repeat(60)}`);
-  log.info("PROCESSING RESULTS");
-  log.info(`${"=".repeat(60)}`);
-  log.info(`Total raw listings: ${allListings.length}`);
-
-  const deduped = deduplicateListings(allListings);
-  log.info(`After deduplication: ${deduped.length}`);
-
-  const normalized = deduped.map(normalizeListing);
-  log.info(`Normalized: ${normalized.length} properties`);
-
-  const upsertResult = await upsertProperties(normalized);
-
   const staleCount = await markStaleListings(30);
-
   const duration = Date.now() - startTime;
 
   const stats: ScraperStats = {
-    totalListings: allListings.length,
-    newListings: upsertResult.created,
-    updatedListings: upsertResult.updated,
-    errors: upsertResult.errors + allResults.reduce((sum, r) => sum + r.errors.length, 0),
+    totalListings,
+    newListings: totalCreated,
+    updatedListings: totalUpdated,
+    errors: totalErrors,
     duration,
     sources: sourceStats,
   };

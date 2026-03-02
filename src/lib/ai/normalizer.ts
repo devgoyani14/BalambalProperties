@@ -1,9 +1,15 @@
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  apiKey: process.env.MINIMAX_API_KEY,
-  baseURL: "https://api.minimaxi.chat/v1",
-});
+let _openai: OpenAI | null = null;
+function getOpenAI() {
+  if (!_openai) {
+    _openai = new OpenAI({
+      apiKey: process.env.MINIMAX_API_KEY,
+      baseURL: "https://api.minimaxi.chat/v1",
+    });
+  }
+  return _openai;
+}
 
 export interface NormalizedListing {
   title: string;
@@ -38,7 +44,7 @@ Return a JSON object with the NormalizedListing schema.`;
 
 export async function normalizeListing(rawData: Record<string, unknown>): Promise<NormalizedListing> {
   try {
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: "MiniMax-Text-01",
       messages: [
         { role: "system", content: SYSTEM_PROMPT + "\n\nIMPORTANT: Respond ONLY with a valid JSON object. No markdown, no explanation, just raw JSON." },

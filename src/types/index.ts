@@ -129,3 +129,13 @@ export interface RiskRubricResult {
   recommendation: string;
   sources: string[];
 }
+
+/** Result from AWS Bedrock compliance agent (HK regulatory assessment). */
+export interface ComplianceAgentResult {
+  summary: string;
+  status: "compliant" | "at_risk" | "non_compliant" | "unknown";
+  confidence: number;
+  regulatoryFlags: string[];
+  recommendations: string[];
+  references: string[];
+}

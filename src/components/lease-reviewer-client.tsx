@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { LeaseReviewResult, LeaseReviewIssue } from "@/lib/ai/lease-reviewer";
+import type { ComplianceAgentResult } from "@/types";
 import { DEMO_LEASE } from "@/lib/demo-lease";
 
 const severityConfig: Record<
@@ -60,6 +61,76 @@ const riskLevelConfig: Record<
   medium: { label: "Medium Risk", color: "text-amber-700", bg: "bg-amber-50", variant: "warning" },
   low: { label: "Low Risk", color: "text-emerald-700", bg: "bg-emerald-50", variant: "success" },
 };
+
+const complianceStatusConfig: Record<
+  string,
+  { label: string; color: string; bg: string }
+> = {
+  compliant: { label: "Compliant", color: "text-emerald-700", bg: "bg-emerald-50" },
+  at_risk: { label: "At risk", color: "text-amber-700", bg: "bg-amber-50" },
+  non_compliant: { label: "Non-compliant", color: "text-red-700", bg: "bg-red-50" },
+  unknown: { label: "Unknown", color: "text-gray-600", bg: "bg-gray-50" },
+};
+
+function ComplianceCard({ compliance }: { compliance: ComplianceAgentResult }) {
+  const config = complianceStatusConfig[compliance.status] ?? complianceStatusConfig.unknown;
+  return (
+    <Card className="border-l-4 border-l-indigo-400">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Shield className="h-5 w-5 text-indigo-600" />
+          Regulatory compliance (HK)
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">{compliance.summary}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="outline" className={config.color}>
+            {config.label}
+          </Badge>
+          <span className="text-xs text-gray-500">
+            Confidence: {Math.round(compliance.confidence * 100)}%
+          </span>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {compliance.regulatoryFlags.length > 0 && (
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+              Flags
+            </p>
+            <ul className="space-y-1.5 text-sm text-gray-700">
+              {compliance.regulatoryFlags.map((flag, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-amber-500" />
+                  {flag}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {compliance.recommendations.length > 0 && (
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+              Recommendations
+            </p>
+            <ul className="space-y-1.5 text-sm text-gray-700">
+              {compliance.recommendations.map((rec, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-600" />
+                  {rec}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {compliance.references.length > 0 && (
+          <p className="text-xs text-gray-500">
+            References: {compliance.references.join(" · ")}
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 function IssueItem({ issue }: { issue: LeaseReviewIssue }) {
   const [expanded, setExpanded] = useState(false);
@@ -348,6 +419,11 @@ export function LeaseReviewerClient() {
                 </ul>
               </CardContent>
             </Card>
+          )}
+
+          {/* Regulatory compliance (AWS Bedrock compliance agent) */}
+          {result.compliance && (
+            <ComplianceCard compliance={result.compliance} />
           )}
 
           {/* Issues */}

@@ -18,119 +18,53 @@ export interface UpsertResult {
   total: number;
 }
 
-export async function upsertProperties(properties: NormalizedProperty[]): Promise<UpsertResult> {
-  const result: UpsertResult = { created: 0, updated: 0, errors: 0, total: properties.length };
+async function upsertOne(prop: NormalizedProperty): Promise<"created" | "updated" | "error"> {
+  try {
+    const existing = await prisma.property.findUnique({
+      where: { canonicalId: prop.canonicalId },
+      select: { id: true, title: true, images: true, sourceListings: { select: { source: true } } },
+    });
 
-  log.info(`Upserting ${properties.length} properties...`);
-
-  for (const prop of properties) {
-    try {
-      const existing = await prisma.property.findUnique({
+    if (existing) {
+      await prisma.property.update({
         where: { canonicalId: prop.canonicalId },
-        include: { sourceListings: true },
+        data: {
+          title: prop.title || existing.title,
+          titleZh: prop.titleZh || undefined,
+          description: prop.description || undefined,
+          descriptionZh: prop.descriptionZh || undefined,
+          district: prop.district || undefined,
+          address: prop.address || undefined,
+          propertyType: prop.propertyType || undefined,
+          saleableArea: prop.saleableArea ?? undefined,
+          grossArea: prop.grossArea ?? undefined,
+          monthlyRent: prop.monthlyRent ?? undefined,
+          psfRent: prop.psfRent ?? undefined,
+          managementFee: prop.managementFee ?? undefined,
+          price: prop.price ?? undefined,
+          floor: prop.floor || undefined,
+          images: prop.images.length > 0 ? prop.images : existing.images,
+          floorPlanUrl: prop.floorPlanUrl || undefined,
+          latitude: prop.latitude ?? undefined,
+          longitude: prop.longitude ?? undefined,
+          features: toJsonValue(prop.features),
+          buildingName: prop.buildingName || undefined,
+          mtrProximity: prop.mtrProximity || undefined,
+          mtrStation: prop.mtrStation || undefined,
+          hasExhaust: prop.hasExhaust || undefined,
+          loadingAccess: prop.loadingAccess || undefined,
+          agentName: prop.agentName || undefined,
+          agentPhone: prop.agentContact || undefined,
+          agentCompany: prop.agentCompany || undefined,
+          status: "active",
+        },
       });
 
-      if (existing) {
-        await prisma.property.update({
-          where: { canonicalId: prop.canonicalId },
-          data: {
-            title: prop.title || existing.title,
-            titleZh: prop.titleZh || existing.titleZh,
-            description: prop.description || existing.description,
-            descriptionZh: prop.descriptionZh || existing.descriptionZh,
-            district: prop.district || existing.district,
-            address: prop.address || existing.address,
-            propertyType: prop.propertyType || existing.propertyType,
-            saleableArea: prop.saleableArea ?? existing.saleableArea,
-            grossArea: prop.grossArea ?? existing.grossArea,
-            monthlyRent: prop.monthlyRent ?? existing.monthlyRent,
-            psfRent: prop.psfRent ?? existing.psfRent,
-            managementFee: prop.managementFee ?? existing.managementFee,
-            price: prop.price ?? existing.price,
-            floor: prop.floor || existing.floor,
-            images: prop.images.length > 0 ? prop.images : existing.images,
-            floorPlanUrl: prop.floorPlanUrl || existing.floorPlanUrl,
-            latitude: prop.latitude ?? existing.latitude,
-            longitude: prop.longitude ?? existing.longitude,
-            features: toJsonValue(prop.features),
-            buildingName: prop.buildingName || existing.buildingName,
-            mtrProximity: prop.mtrProximity || existing.mtrProximity,
-            mtrStation: prop.mtrStation || existing.mtrStation,
-            hasExhaust: prop.hasExhaust || existing.hasExhaust || false,
-            loadingAccess: prop.loadingAccess || existing.loadingAccess || false,
-            agentName: prop.agentName || existing.agentName,
-            agentPhone: prop.agentContact || existing.agentPhone,
-            agentCompany: prop.agentCompany || existing.agentCompany,
-            status: "active",
-          },
-        });
-
-        const sourceExists = existing.sourceListings.some((sl) => sl.source === prop.source);
-        if (!sourceExists) {
-          await prisma.sourceListing.create({
-            data: {
-              propertyId: existing.id,
-              source: prop.source,
-              sourceUrl: prop.sourceUrl,
-              rawData: toJsonValue(prop.rawData) ?? {},
-              agentName: prop.agentName,
-              agentContact: prop.agentContact,
-              scrapedAt: new Date(),
-            },
-          });
-        } else {
-          await prisma.sourceListing.updateMany({
-            where: { propertyId: existing.id, source: prop.source },
-            data: {
-              sourceUrl: prop.sourceUrl,
-              rawData: toJsonValue(prop.rawData) ?? {},
-              agentName: prop.agentName,
-              agentContact: prop.agentContact,
-              scrapedAt: new Date(),
-            },
-          });
-        }
-
-        result.updated++;
-      } else {
-        const property = await prisma.property.create({
-          data: {
-            canonicalId: prop.canonicalId,
-            title: prop.title,
-            titleZh: prop.titleZh,
-            description: prop.description,
-            descriptionZh: prop.descriptionZh,
-            district: prop.district,
-            address: prop.address,
-            propertyType: prop.propertyType,
-            saleableArea: prop.saleableArea,
-            grossArea: prop.grossArea,
-            monthlyRent: prop.monthlyRent,
-            psfRent: prop.psfRent,
-            managementFee: prop.managementFee,
-            price: prop.price,
-            floor: prop.floor,
-            images: prop.images,
-            floorPlanUrl: prop.floorPlanUrl,
-            latitude: prop.latitude,
-            longitude: prop.longitude,
-            features: toJsonValue(prop.features),
-            buildingName: prop.buildingName,
-            mtrProximity: prop.mtrProximity,
-            mtrStation: prop.mtrStation,
-            hasExhaust: prop.hasExhaust || false,
-            loadingAccess: prop.loadingAccess || false,
-            agentName: prop.agentName,
-            agentPhone: prop.agentContact,
-            agentCompany: prop.agentCompany,
-            verificationScore: 0,
-            status: "active",
-          },
-        });
-
+      const sourceExists = existing.sourceListings.some((sl) => sl.source === prop.source);
+      if (!sourceExists) {
         await prisma.sourceListing.create({
           data: {
-            propertyId: property.id,
+            propertyId: existing.id,
             source: prop.source,
             sourceUrl: prop.sourceUrl,
             rawData: toJsonValue(prop.rawData) ?? {},
@@ -139,13 +73,84 @@ export async function upsertProperties(properties: NormalizedProperty[]): Promis
             scrapedAt: new Date(),
           },
         });
-
-        result.created++;
       }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      log.error(`Failed to upsert ${prop.canonicalId}: ${msg}`);
-      result.errors++;
+      return "updated";
+    } else {
+      const property = await prisma.property.create({
+        data: {
+          canonicalId: prop.canonicalId,
+          title: prop.title,
+          titleZh: prop.titleZh,
+          description: prop.description,
+          descriptionZh: prop.descriptionZh,
+          district: prop.district,
+          address: prop.address,
+          propertyType: prop.propertyType,
+          saleableArea: prop.saleableArea,
+          grossArea: prop.grossArea,
+          monthlyRent: prop.monthlyRent,
+          psfRent: prop.psfRent,
+          managementFee: prop.managementFee,
+          price: prop.price,
+          floor: prop.floor,
+          images: prop.images,
+          floorPlanUrl: prop.floorPlanUrl,
+          latitude: prop.latitude,
+          longitude: prop.longitude,
+          features: toJsonValue(prop.features),
+          buildingName: prop.buildingName,
+          mtrProximity: prop.mtrProximity,
+          mtrStation: prop.mtrStation,
+          hasExhaust: prop.hasExhaust || false,
+          loadingAccess: prop.loadingAccess || false,
+          agentName: prop.agentName,
+          agentPhone: prop.agentContact,
+          agentCompany: prop.agentCompany,
+          verificationScore: 0,
+          status: "active",
+        },
+      });
+
+      await prisma.sourceListing.create({
+        data: {
+          propertyId: property.id,
+          source: prop.source,
+          sourceUrl: prop.sourceUrl,
+          rawData: toJsonValue(prop.rawData) ?? {},
+          agentName: prop.agentName,
+          agentContact: prop.agentContact,
+          scrapedAt: new Date(),
+        },
+      });
+      return "created";
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    log.error(`Failed to upsert ${prop.canonicalId}: ${msg}`);
+    return "error";
+  }
+}
+
+const BATCH_CONCURRENCY = 25;
+
+export async function upsertProperties(properties: NormalizedProperty[]): Promise<UpsertResult> {
+  const result: UpsertResult = { created: 0, updated: 0, errors: 0, total: properties.length };
+
+  log.info(`Upserting ${properties.length} properties (concurrency: ${BATCH_CONCURRENCY})...`);
+
+  for (let i = 0; i < properties.length; i += BATCH_CONCURRENCY) {
+    const batch = properties.slice(i, i + BATCH_CONCURRENCY);
+    const outcomes = await Promise.all(batch.map(upsertOne));
+
+    for (const outcome of outcomes) {
+      if (outcome === "created") result.created++;
+      else if (outcome === "updated") result.updated++;
+      else result.errors++;
+    }
+
+    const done = Math.min(i + BATCH_CONCURRENCY, properties.length);
+    if (done % 100 === 0 || done === properties.length) {
+      log.info(`  Progress: ${done}/${properties.length} (${result.created} new, ${result.updated} updated, ${result.errors} errors)`);
     }
   }
 

@@ -45,17 +45,19 @@ function BarChart({ data }: { data: typeof interestRateHistory }) {
   const min = Math.min(...data.map((d) => d.rate)) - 0.5;
   const range = max - min;
   return (
-    <div className="flex items-end gap-2 h-48">
+    <div className="flex gap-2 h-48">
       {data.map((d) => {
         const pct = ((d.rate - min) / range) * 100;
         const isCurrent = d.year === "2026";
         return (
           <div key={d.year} className="flex flex-1 flex-col items-center gap-1">
             <span className="text-xs font-semibold text-gray-700">{d.rate}%</span>
-            <div
-              className={`w-full rounded-t-md transition-all ${isCurrent ? "bg-indigo-600" : "bg-indigo-300"}`}
-              style={{ height: `${pct}%` }}
-            />
+            <div className="flex-1 flex items-end w-full">
+              <div
+                className={`w-full rounded-t-md transition-all ${isCurrent ? "bg-indigo-600" : "bg-indigo-300"}`}
+                style={{ height: `${pct}%` }}
+              />
+            </div>
             <span className={`text-xs ${isCurrent ? "font-bold text-indigo-700" : "text-gray-500"}`}>
               {d.year}
             </span>

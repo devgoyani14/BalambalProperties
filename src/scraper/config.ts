@@ -71,7 +71,7 @@ export const DEFAULT_SCRAPE_OPTIONS: ScrapeOptions = {
   fullScan: false,
   maxPagesPerCategory: 15,
   delayBetweenRequests: 2500,
-  maxDetailPages: 100,
+  maxDetailPages: 5,
 };
 
 export const FULL_SCAN_OPTIONS: ScrapeOptions = {

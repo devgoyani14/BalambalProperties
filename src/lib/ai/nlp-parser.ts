@@ -1,10 +1,16 @@
 import OpenAI from "openai";
 import type { ParsedQuery } from "@/types";
 
-const openai = new OpenAI({
-  apiKey: process.env.MINIMAX_API_KEY,
-  baseURL: "https://api.minimaxi.chat/v1",
-});
+let _openai: OpenAI | null = null;
+function getOpenAI() {
+  if (!_openai) {
+    _openai = new OpenAI({
+      apiKey: process.env.MINIMAX_API_KEY,
+      baseURL: "https://api.minimaxi.chat/v1",
+    });
+  }
+  return _openai;
+}
 
 const SYSTEM_PROMPT = `You are a Hong Kong commercial real estate search assistant. Parse the user's natural language query into a structured search object.
 
@@ -98,7 +104,7 @@ export async function parseNaturalLanguageQuery(
       userContent = ctxParts.join("\n") + "\n\nUser query: " + query;
     }
 
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: "MiniMax-Text-01",
       messages: [
         { role: "system", content: SYSTEM_PROMPT + "\n\nIMPORTANT: Respond ONLY with a valid JSON object. No markdown, no explanation, just raw JSON." },

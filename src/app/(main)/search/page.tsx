@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { SearchPageClient } from "./search-client";
+import { GuidedSearch } from "@/components/guided-search";
 
 interface SearchPageProps {
   searchParams: Promise<{
@@ -19,7 +20,38 @@ interface SearchPageProps {
     sort?: string;
     page?: string;
     mode?: string;
+    shortlist?: string;
+    nearMtr?: string;
   }>;
+}
+
+function parseMtrMinutes(mtrProximity: string | null): number | null {
+  if (!mtrProximity) return null;
+  const match = mtrProximity.match(/(\d+)\s*min/i);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+function computeSuitabilityScore(
+  property: { monthlyRent: number | null; saleableArea: number | null; grossArea: number | null; district: string; mtrProximity: string | null },
+  filters: { maxRent?: number; minArea?: number; maxArea?: number; districts?: string[]; nearMtrMaxMinutes?: number }
+): number {
+  let score = 50;
+  const area = property.saleableArea ?? property.grossArea;
+
+  if (filters.maxRent && property.monthlyRent) {
+    const rentRatio = property.monthlyRent / filters.maxRent;
+    if (rentRatio <= 0.8) score += 15;
+    else if (rentRatio <= 1) score += 5;
+    else score -= 20;
+  }
+  if (filters.minArea && area && area >= filters.minArea) score += 10;
+  if (filters.districts?.length && filters.districts.some((d) => property.district.toLowerCase().includes(d.toLowerCase()))) score += 15;
+  if (filters.nearMtrMaxMinutes) {
+    const mins = parseMtrMinutes(property.mtrProximity);
+    if (mins != null && mins <= filters.nearMtrMaxMinutes) score += 15;
+    else if (property.mtrProximity) score += 5;
+  }
+  return Math.max(0, Math.min(100, score));
 }
 
 async function searchProperties(params: Awaited<SearchPageProps["searchParams"]>) {
@@ -118,14 +150,15 @@ async function searchProperties(params: Awaited<SearchPageProps["searchParams"]>
   }
 
   const page = Math.max(1, Number(params.page) || 1);
-  const limit = 24;
+  const isShortlist = params.shortlist === "1";
+  const limit = isShortlist ? 50 : 24;
 
   try {
-    const [properties, total] = await Promise.all([
+    const [rawProperties, total] = await Promise.all([
       prisma.property.findMany({
         where,
         orderBy,
-        skip: (page - 1) * limit,
+        skip: isShortlist ? 0 : (page - 1) * limit,
         take: limit,
         include: {
           _count: { select: { sourceListings: true } },
@@ -134,44 +167,115 @@ async function searchProperties(params: Awaited<SearchPageProps["searchParams"]>
       prisma.property.count({ where }),
     ]);
 
+    // Filter by nearMtr in code (mtrProximity is a string like "5 min walk")
+    let properties = rawProperties;
+    if (params.nearMtr) {
+      const maxMins = Number(params.nearMtr);
+      if (!isNaN(maxMins)) {
+        properties = rawProperties.filter((p) => {
+          const mins = parseMtrMinutes(p.mtrProximity);
+          return mins != null && mins <= maxMins;
+        });
+      }
+    }
+
+    // Suitability scoring for shortlist
+    const filters = {
+      maxRent: params.maxRent ? Number(params.maxRent) : undefined,
+      minArea: params.minArea ? Number(params.minArea) : undefined,
+      maxArea: params.maxArea ? Number(params.maxArea) : undefined,
+      districts: params.districts?.split(",").filter(Boolean),
+      nearMtrMaxMinutes: params.nearMtr ? Number(params.nearMtr) : undefined,
+    };
+
+    let mapped = properties.map((p) => ({
+      id: p.id,
+      title: p.title,
+      district: p.district,
+      address: p.address,
+      propertyType: p.propertyType,
+      monthlyRent: p.monthlyRent,
+      saleableArea: p.saleableArea,
+      grossArea: p.grossArea,
+      price: p.price,
+      images: p.images,
+      verificationScore: p.verificationScore,
+      engagementScore: p.engagementScore,
+      floor: p.floor,
+      aiScore: p.aiScore,
+      buildingGrade: p.buildingGrade,
+      sourceCount: p._count.sourceListings,
+      mtrProximity: p.mtrProximity,
+      suitabilityScore: 0 as number,
+    }));
+
+    if (isShortlist) {
+      mapped = mapped
+        .map((p) => ({
+          ...p,
+          suitabilityScore: computeSuitabilityScore(
+            { ...p, mtrProximity: p.mtrProximity },
+            filters
+          ),
+        }))
+        .sort((a, b) => b.suitabilityScore - a.suitabilityScore)
+        .slice(0, 12);
+    }
+
     return {
-      properties: properties.map((p) => ({
-        id: p.id,
-        title: p.title,
-        district: p.district,
-        address: p.address,
-        propertyType: p.propertyType,
-        monthlyRent: p.monthlyRent,
-        saleableArea: p.saleableArea,
-        grossArea: p.grossArea,
-        price: p.price,
-        images: p.images,
-        verificationScore: p.verificationScore,
-        engagementScore: p.engagementScore,
-        floor: p.floor,
-        aiScore: p.aiScore,
-        buildingGrade: p.buildingGrade,
-        sourceCount: p._count.sourceListings,
+      properties: mapped.map(({ mtrProximity, suitabilityScore, ...rest }) => ({
+        ...rest,
+        ...(isShortlist && suitabilityScore != null && { suitabilityScore }),
       })),
-      total,
-      page,
-      limit,
+      total: isShortlist ? mapped.length : total,
+      page: isShortlist ? 1 : page,
+      limit: isShortlist ? 12 : limit,
+      totalPages: isShortlist ? 1 : Math.ceil(total / 24),
+      isShortlist,
     };
   } catch {
-    return { properties: [], total: 0, page: 1, limit: 24 };
+    return { properties: [], total: 0, page: 1, limit: 24, totalPages: 1, isShortlist: false };
   }
 }
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {
   const params = await searchParams;
 
+  if (params.mode === "guided") {
+    const initialImageFilters =
+      params.districts || params.types || params.minRent || params.maxRent || params.minArea || params.maxArea
+        ? {
+            districts: params.districts?.split(",").filter(Boolean),
+            propertyTypes: params.types?.split(",").filter(Boolean),
+            minRent: params.minRent ? Number(params.minRent) : undefined,
+            maxRent: params.maxRent ? Number(params.maxRent) : undefined,
+            minArea: params.minArea ? Number(params.minArea) : undefined,
+            maxArea: params.maxArea ? Number(params.maxArea) : undefined,
+          }
+        : undefined;
+
+    return (
+      <Suspense
+        fallback={
+          <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="text-gray-500 text-sm">Loading...</div>
+          </div>
+        }
+      >
+        <GuidedSearch
+          initialQuery={params.q}
+          initialImageFilters={initialImageFilters}
+        />
+      </Suspense>
+    );
+  }
+
   const hasAnyFilter = !!(
     params.districts || params.types || params.minRent || params.maxRent ||
     params.minArea || params.maxArea || params.q || params.fengShuiRated || params.minFengShui
   );
 
-  const { properties, total, page, limit } = await searchProperties(params);
-  const totalPages = Math.ceil(total / limit);
+  const { properties, total, page, limit, totalPages, isShortlist } = await searchProperties(params);
 
   return (
     <Suspense
@@ -188,6 +292,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         totalPages={totalPages}
         params={params}
         hasAnyFilter={hasAnyFilter}
+        isShortlist={isShortlist}
       />
     </Suspense>
   );

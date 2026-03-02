@@ -1,4 +1,4 @@
-# Balambal Properties
+# BalaOne Properties
 
 AI-powered commercial real estate platform for SMEs in Hong Kong. Find, evaluate, and shortlist verified commercial properties with intelligent search, compliance pre-checks, and evidence packs.
 
@@ -73,7 +73,7 @@ Visit [http://localhost:3000](http://localhost:3000).
 ### Demo Account
 
 After seeding, log in with:
-- Email: `demo@balambal.com`
+- Email: `demo@balaone.com`
 - Password: `demo1234`
 
 ## Features (MVP)
